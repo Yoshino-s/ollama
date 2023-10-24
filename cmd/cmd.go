@@ -123,7 +123,11 @@ func RunHandler(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	canonicalModelPath := server.ParseModelPath(args[0])
+	canonicalModelPath, err := server.ParseModelPath(args[0])
+	if err != nil {
+		return err
+	}
+
 	for _, model := range models.Models {
 		if model.Name == canonicalModelPath.GetShortTagname() {
 			return RunGenerate(cmd, args)

@@ -20,7 +20,7 @@ const (
 	regularChunkSize  int64 = 95 * 1024 * 1024
 )
 
-func startUpload(ctx context.Context, mp ModelPath, layer *Layer, regOpts *RegistryOptions) (*url.URL, int64, error) {
+func startUpload(ctx context.Context, mp *ModelPath, layer *Layer, regOpts *RegistryOptions) (*url.URL, int64, error) {
 	requestURL := mp.BaseURL()
 	requestURL = requestURL.JoinPath("v2", mp.GetNamespaceRepository(), "blobs/uploads/")
 	if layer.From != "" {

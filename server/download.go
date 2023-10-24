@@ -298,7 +298,7 @@ func (b *blobDownload) Wait(ctx context.Context, fn func(api.ProgressResponse)) 
 }
 
 type downloadOpts struct {
-	mp      ModelPath
+	mp      *ModelPath
 	digest  string
 	regOpts *RegistryOptions
 	fn      func(api.ProgressResponse)

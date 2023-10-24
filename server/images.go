@@ -130,7 +130,7 @@ func (m *ManifestV2) GetTotalSize() (total int64) {
 	return total
 }
 
-func GetManifest(mp ModelPath) (*ManifestV2, string, error) {
+func GetManifest(mp *ModelPath) (*ManifestV2, string, error) {
 	fp, err := mp.GetManifestPath(false)
 	if err != nil {
 		return nil, "", err
@@ -158,7 +158,11 @@ func GetManifest(mp ModelPath) (*ManifestV2, string, error) {
 }
 
 func GetModel(name string) (*Model, error) {
-	mp := ParseModelPath(name)
+	mp, err := ParseModelPath(name)
+	if err != nil {
+		return nil, err
+	}
+
 	manifest, digest, err := GetManifest(mp)
 	if err != nil {
 		return nil, err
@@ -253,10 +257,12 @@ func filenameWithPath(path, f string) (string, error) {
 }
 
 func CreateModel(ctx context.Context, name string, path string, fn func(resp api.ProgressResponse)) error {
-	mp := ParseModelPath(name)
+	mp, err := ParseModelPath(name)
+	if err != nil {
+		return err
+	}
 
 	var manifest *ManifestV2
-	var err error
 	var noprune string
 
 	// build deleteMap to prune unused layers
@@ -303,7 +309,11 @@ func CreateModel(ctx context.Context, name string, path string, fn func(resp api
 		case "model":
 			fn(api.ProgressResponse{Status: "looking for model"})
 
-			mp := ParseModelPath(c.Args)
+			mp, err := ParseModelPath(c.Args)
+			if err != nil {
+				return err
+			}
+
 			mf, _, err := GetManifest(mp)
 			if err != nil {
 				modelFile, err := filenameWithPath(path, c.Args)
@@ -578,7 +588,11 @@ func SaveLayers(layers []*LayerReader, fn func(resp api.ProgressResponse), force
 }
 
 func CreateManifest(name string, cfg *LayerReader, layers []*Layer) error {
-	mp := ParseModelPath(name)
+	mp, err := ParseModelPath(name)
+	if err != nil {
+		return err
+	}
+
 	manifest := ManifestV2{
 		SchemaVersion: 2,
 		MediaType:     "application/vnd.docker.distribution.manifest.v2+json",
@@ -709,13 +723,21 @@ func CreateLayer(f io.ReadSeeker) (*LayerReader, error) {
 }
 
 func CopyModel(src, dest string) error {
-	srcModelPath := ParseModelPath(src)
+	srcModelPath, err := ParseModelPath(src)
+	if err != nil {
+		return err
+	}
+
 	srcPath, err := srcModelPath.GetManifestPath(false)
 	if err != nil {
 		return err
 	}
 
-	destModelPath := ParseModelPath(dest)
+	destModelPath, err := ParseModelPath(dest)
+	if err != nil {
+		return err
+	}
+
 	destPath, err := destModelPath.GetManifestPath(true)
 	if err != nil {
 		return err
@@ -751,7 +773,10 @@ func deleteUnusedLayers(skipModelPath *ModelPath, deleteMap map[string]bool, dry
 		dir, file := filepath.Split(path)
 		dir = strings.Trim(strings.TrimPrefix(dir, fp), string(os.PathSeparator))
 		tag := strings.Join([]string{dir, file}, ":")
-		fmp := ParseModelPath(tag)
+		fmp, err := ParseModelPath(tag)
+		if err != nil {
+			return err
+		}
 
 		// skip the manifest we're trying to delete
 		if skipModelPath != nil && skipModelPath.GetFullTagname() == fmp.GetFullTagname() {
@@ -865,7 +890,11 @@ func PruneDirectory(path string) error {
 }
 
 func DeleteModel(name string) error {
-	mp := ParseModelPath(name)
+	mp, err := ParseModelPath(name)
+	if err != nil {
+		return err
+	}
+
 	manifest, _, err := GetManifest(mp)
 	if err != nil {
 		return err
@@ -877,7 +906,7 @@ func DeleteModel(name string) error {
 	}
 	deleteMap[manifest.Config.Digest] = true
 
-	err = deleteUnusedLayers(&mp, deleteMap, false)
+	err = deleteUnusedLayers(mp, deleteMap, false)
 	if err != nil {
 		return err
 	}
@@ -957,7 +986,11 @@ PARAMETER {{ $k }} {{ printf "%#v" $parameter }}
 }
 
 func PushModel(ctx context.Context, name string, regOpts *RegistryOptions, fn func(api.ProgressResponse)) error {
-	mp := ParseModelPath(name)
+	mp, err := ParseModelPath(name)
+	if err != nil {
+		return err
+	}
+
 	fn(api.ProgressResponse{Status: "retrieving manifest"})
 
 	if mp.ProtocolScheme == "http" && !regOpts.Insecure {
@@ -1043,10 +1076,12 @@ func PushModel(ctx context.Context, name string, regOpts *RegistryOptions, fn fu
 }
 
 func PullModel(ctx context.Context, name string, regOpts *RegistryOptions, fn func(api.ProgressResponse)) error {
-	mp := ParseModelPath(name)
+	mp, err := ParseModelPath(name)
+	if err != nil {
+		return err
+	}
 
 	var manifest *ManifestV2
-	var err error
 	var noprune string
 
 	// build deleteMap to prune unused layers
@@ -1145,7 +1180,7 @@ func PullModel(ctx context.Context, name string, regOpts *RegistryOptions, fn fu
 	return nil
 }
 
-func pullModelManifest(ctx context.Context, mp ModelPath, regOpts *RegistryOptions) (*ManifestV2, error) {
+func pullModelManifest(ctx context.Context, mp *ModelPath, regOpts *RegistryOptions) (*ManifestV2, error) {
 	requestURL := mp.BaseURL().JoinPath("v2", mp.GetNamespaceRepository(), "manifests", mp.Tag)
 
 	headers := make(http.Header)
@@ -1210,7 +1245,7 @@ func GetSHA256Digest(r io.Reader) (string, int64) {
 }
 
 // Function to check if a blob already exists in the Docker registry
-func checkBlobExistence(ctx context.Context, mp ModelPath, digest string, regOpts *RegistryOptions) (bool, error) {
+func checkBlobExistence(ctx context.Context, mp *ModelPath, digest string, regOpts *RegistryOptions) (bool, error) {
 	requestURL := mp.BaseURL()
 	requestURL = requestURL.JoinPath("v2", mp.GetNamespaceRepository(), "blobs", digest)
 
